@@ -1,12 +1,13 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
-
 namespace ClientPersonData
 {
     public partial class Form1 : Form
@@ -32,6 +33,10 @@ namespace ClientPersonData
             dgvAddInterests.Columns[1].HeaderText = "Оценка";
             dgvEditInterests.Columns[0].HeaderText = "Название";
             dgvEditInterests.Columns[1].HeaderText = "Оценка";
+            dgvTargFindProf.Columns.Add("cName", "Приложение");
+            dgvTargFindProf.Columns.Add("cCount", "Количество пользователей");
+            //dgvTargFindProf.Columns[0].HeaderText = "Компания";
+            //dgvTargFindProf.Columns[1].HeaderText = "Приложение пользователей";
         }
 
         private void ДобавитьДанныеToolStripMenuItem1_Click(object sender, EventArgs e)
@@ -44,7 +49,8 @@ namespace ClientPersonData
             dgvAddInteres = new BindingList<Interes>();
             panelAddData.Visible = true;
             panelEditData.Visible = false;
-            panelDelete.Visible = false;  
+            panelDelete.Visible = false;
+            panelTarg.Visible = false;
             //Add
             btAddApply.Enabled = false;
             btAddInteres.Enabled = false;
@@ -57,6 +63,7 @@ namespace ClientPersonData
             panelAddData.Visible = false;
             panelEditData.Visible = true;
             panelDelete.Visible = false;
+            panelTarg.Visible = false;
             btEditAddInteres.Enabled = false;
             btEditApply.Enabled = false;
             dgvEditInteres = new BindingList<Interes>();
@@ -70,11 +77,23 @@ namespace ClientPersonData
         {
             panelAddData.Visible = false;
             panelEditData.Visible = false;
+            panelTarg.Visible = false;
             panelDelete.Visible = true;
             btDeleteApply.Enabled = false;
 
         }
-       
+        private void ТаргетингToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            panelAddData.Visible = false;
+            panelEditData.Visible = false;
+            panelDelete.Visible = false;
+            panelTarg.Visible = true;            
+            btTargCheckTransfer.Enabled = false;
+            tbTargIdTrans.Text = "3f3405c6f2fd42cf1adcb82fbe0b562a90e6756ab42d9aa225263cbe75f2ce98";
+            tbTargNumBlock.Text = "32142119";
+            tbTargNameAdvetirsment.Text = "moneyaccount";
+            tbTargQuantity.Text = "1,2000";
+        }
 
         private void TbTargNameInter_TextChanged(object sender, EventArgs e)
         {
@@ -94,39 +113,46 @@ namespace ClientPersonData
 
         private void BtTargFind_Click(object sender, EventArgs e)
         {
+
+            //dgvTargFindProf.Rows.Add("Oduvanchiki", "7");
+            //dgvTargFindProf.Rows.Add("FindFriend", "1");
+            //dgvTargFindProf.Rows.Add("FacePhone", "13");
             string site = "http://maz-VirtualBox:3000/api/selectPersonByInteres";
             WebRequest request = WebRequest.Create(site);
             request.Method = "POST";
-            string postData = "{ \"$class\": \"org.example.mynetwork.selectPersonByInteres\", \"name\":\"" + tbTargNameInter.Text+"\", \"rate\": \""+nudTargRateInter.Value.ToString() + "\" }";
+            string postData = "{ \"$class\": \"org.example.mynetwork.selectPersonByInteres\", \"name\":\"" + tbTargNameInter.Text + "\", \"rate\": \"" + nudTargRateInter.Value.ToString() + "\" }";
             byte[] byteArray = Encoding.UTF8.GetBytes(postData);
             request.ContentType = "application/json";
             request.ContentLength = byteArray.Length;
-           
+
             //request.Headers.Add("Accept: application/json");
 
             Stream dataStream = request.GetRequestStream();
             dataStream.Write(byteArray, 0, byteArray.Length);
             dataStream.Close();
-          
+
             WebResponse response = request.GetResponse();
 
             using (dataStream = response.GetResponseStream())
-            {                
+            {
+                cbTargSelsectAppl.Items.Clear();
                 StreamReader reader = new StreamReader(dataStream);
                 string responseFromServer = reader.ReadLine();
-                List<Person> persons = JsonConvert.DeserializeObject<List<Person>>(responseFromServer);
-                rtbTargLists.Text += "Количество подходящих записей = "+ persons.Count.ToString();
+                List<Result> persons = JsonConvert.DeserializeObject<List<Result>>(responseFromServer);
+                //rtbTargLists.Text += "Количество подходящих записей = "+ persons.Count.ToString();
                 foreach (var person in persons)
                 {
-
-                    rtbTargLists.Text += person.UserID;
+                    dgvTargFindProf.Rows.Add(person.nameOrg, person.count);
+                    cbTargSelsectAppl.Items.Add(person.nameOrg);
+                    //  rtbTargLists.Text += person.UserID;
                 }
                 // rtbTargLists.Text += responseFromServer;
                 //rtbTargLists.Text += persons[0].UserID;                
             }
             //request.Headers.Add("Content-Type: application/json");
-            
-        }        
+
+
+        }
 
         private void TbAddNameInteres_TextChanged(object sender, EventArgs e)
         {
@@ -147,7 +173,7 @@ namespace ClientPersonData
         }
         public void CheckAddForm()
         {
-            if (tbAddCountry.Text != "" && tbAddPublAdr.Text != "" && dgvAddInteres.Count != 0)
+            if (tbAddCountry.Text != "" && tbAddPublAdr.Text != "" && dgvAddInteres.Count != 0 &&tbAddAppl.Text!="")
                 btAddApply.Enabled = true;
             else
                 btAddApply.Enabled = false;
@@ -186,7 +212,7 @@ namespace ClientPersonData
                     strWithInterests += "]";
                 countData++;
             }
-            string postData = "{\"$class\": \"org.example.mynetwork.addData\", \"id\": \""+Guid.NewGuid().ToString()+"\", \"count\": \"" + tbAddCountry.Text + "\", \"publadr\": \"" + tbAddPublAdr.Text + "\", \"interess\": "+ strWithInterests+"}";
+            string postData = "{\"$class\": \"org.example.mynetwork.addData\", \"nameApplication\":\""+ tbAddAppl.Text +"\", \"id\": \"" + Guid.NewGuid().ToString()+"\", \"count\": \"" + tbAddCountry.Text + "\", \"publadr\": \"" + tbAddPublAdr.Text + "\", \"interess\": "+ strWithInterests+"}";
             byte[] byteArray = Encoding.UTF8.GetBytes(postData);
             request.ContentType = "application/json";
             request.ContentLength = byteArray.Length;
@@ -304,30 +330,86 @@ namespace ClientPersonData
                 MessageBox.Show("Изменение интересов успешно");
             }
         }
-        private void CheckPay(string from, string to, float price, string idTrasaction)
+      
+        private void CheckPay(string from, string to, double price, string idTrasaction, string numBlock)
         {
-            string site = "http://jungle2.cryptolions.io:80/v1/history/get_transaction";
-            WebRequest request = WebRequest.Create(site);
-            request.Method = "POST";
-            string postData = "{ \"$class\": \"org.example.mynetwork.deleteData\", \"id\":\"" + tbDeleteGUID.Text + "\" }";
-            byte[] byteArray = Encoding.UTF8.GetBytes(postData);
-            request.ContentType = "application/json";
-            request.ContentLength = byteArray.Length;
-
             //request.Headers.Add("Accept: application/json");
+            Stream dataStream=null;
 
-            Stream dataStream = request.GetRequestStream();
-            dataStream.Write(byteArray, 0, byteArray.Length);
-            dataStream.Close();
-
-            WebResponse response = request.GetResponse();
+            WebResponse response=null;
+            bool flag = true;
+            while (flag)
+            {
+                string site = "http://jungle2.cryptolions.io:80/v1/history/get_transaction";
+                WebRequest request = WebRequest.Create(site);
+                request.Method = "POST";
+                string postData = "{\"id\":\"3f3405c6f2fd42cf1adcb82fbe0b562a90e6756ab42d9aa225263cbe75f2ce98\",\"block_num_hint\":32142119}";
+                byte[] byteArray = Encoding.UTF8.GetBytes(postData);
+                request.ContentType = "application/json";
+                request.ContentLength = byteArray.Length;
+                dataStream = request.GetRequestStream();
+                dataStream.Write(byteArray, 0, byteArray.Length);
+                dataStream.Close();
+                try
+                {
+                    response = request.GetResponse();
+                    flag = false;
+                }
+                catch (Exception ex)
+                {
+                    //MessageBox.Show(ex.Message);
+                }
+            }
 
             using (dataStream = response.GetResponseStream())
             {
                 StreamReader reader = new StreamReader(dataStream);
                 string responseFromServer = reader.ReadToEnd();
-                MessageBox.Show("Удаление прошло успешно");
+                MessageBox.Show(responseFromServer);
+
+                //responseFromServer.Replace("\\", "");
+
+                //var action = responseFromServer.Substring()
+                int start = responseFromServer.IndexOf("{\"from");
+                int stop = responseFromServer.IndexOf(",\"memo\"");
+                string intrestingString = responseFromServer.Substring(start,stop-start)+"}";
+                //var answer = JObject.Parse(responseFromServer);
+                intrestingString = intrestingString.Replace(" EOS", "");                
+                data persons = JsonConvert.DeserializeObject<data>(intrestingString);                
+                MessageBox.Show("from " + persons.from + " to " + persons.to + " count " + persons.quantity);
+                if (persons.from == from && persons.to == to && persons.quantity == price)
+                    MessageBox.Show("Оплата подтверждена");
+                else
+                    MessageBox.Show("Факт оплаты не подтверждён");
+
+           }
+        }
+        private void Button1_Click(object sender, EventArgs e)
+        {
+            CheckPay(tbTargNameAdvetirsment.Text,cbTargSelsectAppl.SelectedItem.ToString(), Convert.ToDouble(tbTargQuantity.Text),tbTargIdTrans.Text,tbTargNumBlock.Text);
+        }
+
+        private void TbTargQuantity_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                Convert.ToDouble(tbTargQuantity.Text);
+                btTargCheckTransfer.Enabled = true;
             }
+            catch(Exception ex)
+            {
+                btTargCheckTransfer.Enabled = false;
+            }
+        }
+
+        private void ВыборкаПоИнтересамToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void TbAddAppl_TextChanged(object sender, EventArgs e)
+        {
+            CheckAddForm();
         }
     }
 }
